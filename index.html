@@ -804,8 +804,22 @@
 
         // Email Results
         function emailResults() {
-            const propertyAddress = document.getElementById('result-address').textContent;
-            const purchasePrice = document.getElementById('result-purchase-price').textContent;
+            // Get data directly from inputs for accuracy
+            const propertyAddress = document.getElementById('property-address').value || 'Not specified';
+            const totalUnits = document.getElementById('total-units').value;
+            const vacantUnits = document.getElementById('vacant-units').value;
+            const purchasePrice = parseFloat(document.getElementById('purchase-price').value);
+            const downPaymentPct = parseFloat(document.getElementById('down-payment').value);
+            const downPaymentAmount = purchasePrice * (downPaymentPct / 100);
+            const loanAmount = purchasePrice - downPaymentAmount;
+            const interestRate = document.getElementById('interest-rate').value;
+            const paymentType = document.querySelector('input[name="payment-type"]:checked').value;
+            const loanTerm = document.getElementById('loan-term').value;
+
+            // Get results from display
+            const occupiedIncome = document.getElementById('result-occupied').textContent;
+            const vacantIncome = document.getElementById('result-vacant').textContent;
+            const egi = document.getElementById('result-egi').textContent;
             const downPayment = document.getElementById('result-down-payment').textContent;
             const loanAmount = document.getElementById('result-loan-amount').textContent;
             const occupiedIncome = document.getElementById('result-occupied').textContent;
@@ -905,7 +919,7 @@
                     loanTerm: document.getElementById('loan-term').value
                 },
                 results: {
-                    propertyAddress: document.getElementById('result-address').textContent,
+                    propertyAddress: document.getElementById('property-address').value || 'Not specified',
                     purchasePrice: document.getElementById('result-purchase-price').textContent,
                     downPayment: document.getElementById('result-down-payment').textContent,
                     loanAmount: document.getElementById('result-loan-amount').textContent,
