@@ -333,6 +333,16 @@
         </div>
 
         <form id="dscr-form">
+            <div class="section-header">Property Information</div>
+            
+            <div class="form-group">
+                <label for="property-address">
+                    Property Address
+                    <div class="help-text">Street address, city, state, ZIP</div>
+                </label>
+                <input type="text" id="property-address" placeholder="e.g., 123 Main St, City, State 12345">
+            </div>
+
             <div class="section-header">Property Overview</div>
             
             <div class="form-group">
@@ -451,11 +461,24 @@
             <div class="section-header">Loan Details</div>
 
             <div class="form-group">
-                <label for="loan-amount">
-                    Loan Amount *
-                    <div class="help-text">Total amount you're borrowing</div>
+                <label for="purchase-price">
+                    Purchase Price *
+                    <div class="help-text">Total purchase price of the property</div>
                 </label>
-                <input type="number" id="loan-amount" required min="0" step="0.01" placeholder="e.g., 800000">
+                <input type="number" id="purchase-price" required min="0" step="0.01" placeholder="e.g., 1000000">
+            </div>
+
+            <div class="form-group">
+                <label for="down-payment">
+                    Down Payment (%) *
+                    <div class="help-text">Percentage of purchase price paid as down payment</div>
+                </label>
+                <input type="number" id="down-payment" required min="0" max="100" step="0.1" value="20" placeholder="e.g., 20">
+            </div>
+
+            <div class="calculated-field">
+                <span class="calculated-label">Loan Amount:</span>
+                <span class="calculated-value" id="loan-amount-display">$0</span>
             </div>
 
             <div class="form-group">
@@ -492,6 +515,22 @@
         </form>
 
         <div class="results" id="results">
+            <div class="result-row" id="address-result" style="display: none;">
+                <span class="result-label">Property Address:</span>
+                <span class="result-value" id="result-address">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Purchase Price:</span>
+                <span class="result-value" id="result-purchase-price">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Down Payment:</span>
+                <span class="result-value" id="result-down-payment">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Loan Amount:</span>
+                <span class="result-value" id="result-loan-amount">$0</span>
+            </div>
             <div class="result-row">
                 <span class="result-label">Occupied Unit Income:</span>
                 <span class="result-value" id="result-occupied">$0</span>
@@ -543,6 +582,9 @@
         <div class="note">
             <strong>Understanding DSCR:</strong><br>
             DSCR (Debt Service Coverage Ratio) measures if your property generates enough income to cover loan payments. Most lenders require a minimum DSCR of 1.20-1.25.<br><br>
+            <strong>How loan amount is calculated:</strong><br>
+            • Loan Amount = Purchase Price × (1 - Down Payment %)<br>
+            • Typical down payment: 20-25% for commercial properties<br><br>
             <strong>How qualifying income is calculated:</strong><br>
             • Occupied units: 100% of actual rental income<br>
             • Vacant units: 75% of potential rental income<br>
@@ -569,6 +611,21 @@
         const results = document.getElementById('results');
         const egiDisplay = document.getElementById('egi-display');
         const noiDisplay = document.getElementById('noi-display');
+        const loanAmountDisplay = document.getElementById('loan-amount-display');
+
+        // Calculate and display loan amount in real-time
+        const purchasePriceInput = document.getElementById('purchase-price');
+        const downPaymentInput = document.getElementById('down-payment');
+
+        function updateLoanAmount() {
+            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+            const downPaymentPct = parseFloat(downPaymentInput.value) || 0;
+            const loanAmount = purchasePrice * (1 - downPaymentPct / 100);
+            loanAmountDisplay.textContent = `${loanAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        purchasePriceInput.addEventListener('input', updateLoanAmount);
+        downPaymentInput.addEventListener('input', updateLoanAmount);
 
         // Show/hide loan term based on payment type
         paymentAmortizing.addEventListener('change', () => {
@@ -643,6 +700,9 @@
         });
 
         function calculateDSCR() {
+            // Get property address
+            const propertyAddress = document.getElementById('property-address').value;
+            
             // Calculate income
             const occupiedIncome = parseFloat(document.getElementById('occupied-income').value);
             const vacantIncome = parseFloat(document.getElementById('vacant-income').value) || 0;
@@ -666,8 +726,11 @@
             const hasMgmtFee = document.querySelector('input[name="management"]:checked').value === 'yes';
             const mgmtFee = hasMgmtFee ? parseFloat(document.getElementById('mgmt-fee').value) || 0 : 0;
             
-            // Get loan details
-            const loanAmount = parseFloat(document.getElementById('loan-amount').value);
+            // Get loan details - calculate loan amount from purchase price and down payment
+            const purchasePrice = parseFloat(document.getElementById('purchase-price').value);
+            const downPaymentPct = parseFloat(document.getElementById('down-payment').value);
+            const downPaymentAmount = purchasePrice * (downPaymentPct / 100);
+            const loanAmount = purchasePrice - downPaymentAmount;
             const interestRate = parseFloat(document.getElementById('interest-rate').value) / 100;
             const paymentType = document.querySelector('input[name="payment-type"]:checked').value;
             const loanTerm = paymentType === 'amortizing' ? parseInt(document.getElementById('loan-term').value) : 0;
@@ -741,19 +804,73 @@
 
         // Email Results
         function emailResults() {
-            const dscr = document.getElementById('dscr-value').textContent;
+            const propertyAddress = document.getElementById('result-address').textContent;
+            const purchasePrice = document.getElementById('result-purchase-price').textContent;
+            const downPayment = document.getElementById('result-down-payment').textContent;
+            const loanAmount = document.getElementById('result-loan-amount').textContent;
+            const occupiedIncome = document.getElementById('result-occupied').textContent;
+            const vacantIncome = document.getElementById('result-vacant').textContent;
+            const egi = document.getElementById('result-egi').textContent;
+            const expenses = document.getElementById('result-expenses').textContent;
+            const noi = document.getElementById('result-noi').textContent;
+            const adjustment = document.getElementById('result-adjustment').textContent;
             const qualifyingIncome = document.getElementById('result-income').textContent;
+            const paymentType = document.getElementById('result-payment-type').textContent;
             const annualDebt = document.getElementById('result-debt').textContent;
+            const dscr = document.getElementById('dscr-value').textContent;
             const status = document.getElementById('dscr-status').textContent;
 
-            const subject = encodeURIComponent('DSCR Calculation Results');
+            const addressLine = propertyAddress !== '-' ? `Property Address: ${propertyAddress}\n` : '';
+
+            const subject = encodeURIComponent('DSCR Calculation Results' + (propertyAddress !== '-' ? ` - ${propertyAddress}` : ''));
             const body = encodeURIComponent(
-                `DSCR Calculation Results\n\n` +
-                `DSCR: ${dscr}\n` +
-                `Status: ${status}\n\n` +
+                `DEBT SERVICE COVERAGE RATIO (DSCR) CALCULATION\n` +
+                `Generated: ${new Date().toLocaleString()}\n\n` +
+                `═══════════════════════════════════════════════\n` +
+                `PROPERTY INFORMATION\n` +
+                `═══════════════════════════════════════════════\n` +
+                `${addressLine}` +
+                `Total Units: ${document.getElementById('total-units').value}\n` +
+                `Vacant Units: ${document.getElementById('vacant-units').value}\n\n` +
+                `═══════════════════════════════════════════════\n` +
+                `FINANCIAL OVERVIEW\n` +
+                `═══════════════════════════════════════════════\n` +
+                `Purchase Price: ${purchasePrice}\n` +
+                `Down Payment: ${downPayment}\n` +
+                `Loan Amount: ${loanAmount}\n` +
+                `Interest Rate: ${document.getElementById('interest-rate').value}%\n` +
+                `Payment Type: ${paymentType}\n` +
+                (paymentType === 'Amortizing' ? `Loan Term: ${document.getElementById('loan-term').value} years\n` : '') +
+                `\n═══════════════════════════════════════════════\n` +
+                `INCOME ANALYSIS\n` +
+                `═══════════════════════════════════════════════\n` +
+                `Occupied Unit Income: ${occupiedIncome}\n` +
+                `Vacant Unit Income (75%): ${vacantIncome}\n` +
+                `Effective Gross Income: ${egi}\n\n` +
+                `═══════════════════════════════════════════════\n` +
+                `EXPENSES\n` +
+                `═══════════════════════════════════════════════\n` +
+                `Property Taxes: ${document.getElementById('property-tax').value}\n` +
+                `Insurance: ${document.getElementById('insurance').value}\n` +
+                `Utilities: ${document.getElementById('utilities').value || '0'}\n` +
+                `Maintenance: ${document.getElementById('maintenance').value || '0'}\n` +
+                `Other Expenses: ${document.getElementById('other-expenses').value || '0'}\n` +
+                `Total Operating Expenses: ${expenses}\n\n` +
+                `═══════════════════════════════════════════════\n` +
+                `DSCR CALCULATION\n` +
+                `═══════════════════════════════════════════════\n` +
+                `Net Operating Income (NOI): ${noi}\n` +
+                `Additional Adjustment: ${adjustment}\n` +
                 `Qualifying Income: ${qualifyingIncome}\n` +
                 `Annual Debt Service: ${annualDebt}\n\n` +
-                `For detailed breakdown, please see the attached calculation.`
+                `DSCR: ${dscr}\n` +
+                `Status: ${status}\n\n` +
+                `═══════════════════════════════════════════════\n` +
+                `NOTES\n` +
+                `═══════════════════════════════════════════════\n` +
+                `Most lenders require a minimum DSCR of 1.20-1.25\n` +
+                `Formula: DSCR = Qualifying Income ÷ Annual Debt Service\n\n` +
+                `This calculation is for informational purposes only and does not constitute a loan commitment.`
             );
 
             window.location.href = `mailto:?subject=${subject}&body=${body}`;
@@ -769,6 +886,7 @@
             const data = {
                 timestamp: new Date().toISOString(),
                 inputs: {
+                    propertyAddress: document.getElementById('property-address').value,
                     totalUnits: document.getElementById('total-units').value,
                     vacantUnits: document.getElementById('vacant-units').value,
                     occupiedIncome: document.getElementById('occupied-income').value,
@@ -780,12 +898,17 @@
                     otherExpenses: document.getElementById('other-expenses').value,
                     hasMgmtFee: document.querySelector('input[name="management"]:checked')?.value,
                     mgmtFee: document.getElementById('mgmt-fee').value,
-                    loanAmount: document.getElementById('loan-amount').value,
+                    purchasePrice: document.getElementById('purchase-price').value,
+                    downPayment: document.getElementById('down-payment').value,
                     interestRate: document.getElementById('interest-rate').value,
                     paymentType: document.querySelector('input[name="payment-type"]:checked')?.value,
                     loanTerm: document.getElementById('loan-term').value
                 },
                 results: {
+                    propertyAddress: document.getElementById('result-address').textContent,
+                    purchasePrice: document.getElementById('result-purchase-price').textContent,
+                    downPayment: document.getElementById('result-down-payment').textContent,
+                    loanAmount: document.getElementById('result-loan-amount').textContent,
                     occupiedIncome: document.getElementById('result-occupied').textContent,
                     vacantIncome: document.getElementById('result-vacant').textContent,
                     egi: document.getElementById('result-egi').textContent,
@@ -822,6 +945,7 @@
                     const data = JSON.parse(event.target.result);
                     
                     // Populate all form fields
+                    document.getElementById('property-address').value = data.inputs.propertyAddress || '';
                     document.getElementById('total-units').value = data.inputs.totalUnits || '';
                     document.getElementById('vacant-units').value = data.inputs.vacantUnits || '0';
                     document.getElementById('occupied-income').value = data.inputs.occupiedIncome || '';
@@ -831,7 +955,19 @@
                     document.getElementById('utilities').value = data.inputs.utilities || '0';
                     document.getElementById('maintenance').value = data.inputs.maintenance || '0';
                     document.getElementById('other-expenses').value = data.inputs.otherExpenses || '0';
-                    document.getElementById('loan-amount').value = data.inputs.loanAmount || '';
+                    
+                    // Handle both old and new format (loanAmount vs purchasePrice/downPayment)
+                    if (data.inputs.purchasePrice) {
+                        document.getElementById('purchase-price').value = data.inputs.purchasePrice || '';
+                        document.getElementById('down-payment').value = data.inputs.downPayment || '20';
+                    } else if (data.inputs.loanAmount) {
+                        // Legacy format - convert to purchase price with 20% down
+                        const oldLoanAmount = parseFloat(data.inputs.loanAmount);
+                        const estimatedPurchasePrice = oldLoanAmount / 0.8; // Assume 20% down
+                        document.getElementById('purchase-price').value = estimatedPurchasePrice.toFixed(2);
+                        document.getElementById('down-payment').value = '20';
+                    }
+                    
                     document.getElementById('interest-rate').value = data.inputs.interestRate || '';
                     document.getElementById('loan-term').value = data.inputs.loanTerm || '';
 
@@ -860,6 +996,7 @@
                     vacantUnitsInput.dispatchEvent(new Event('input'));
                     
                     // Update calculations
+                    updateLoanAmount();
                     updateCalculations();
 
                     // Scroll to form
