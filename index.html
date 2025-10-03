@@ -236,8 +236,88 @@
             line-height: 1.6;
         }
 
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-btn {
+            padding: 10px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .load-section {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f7fafc;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .load-section input[type="file"] {
+            display: none;
+        }
+
+        .load-label {
+            display: inline-block;
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .load-label:hover {
+            background: #667eea;
+            color: white;
+        }
+
         .hidden {
             display: none;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+                padding: 20px;
+            }
+
+            form, .note, .action-buttons, .load-section {
+                display: none !important;
+            }
+
+            .results {
+                display: block !important;
+                page-break-inside: avoid;
+            }
+
+            .section-header {
+                page-break-after: avoid;
+            }
         }
     </style>
 </head>
@@ -245,6 +325,12 @@
     <div class="container">
         <h1>DSCR Calculator</h1>
         <p class="subtitle">Debt Service Coverage Ratio for 5-8 unit properties</p>
+
+        <div class="load-section">
+            <p style="margin-bottom: 10px; color: #4a5568; font-weight: 600;">Load Previous Calculation</p>
+            <input type="file" id="load-file" accept=".json">
+            <label for="load-file" class="load-label">Choose File to Load</label>
+        </div>
 
         <form id="dscr-form">
             <div class="section-header">Property Overview</div>
@@ -381,6 +467,20 @@
             </div>
 
             <div class="form-group">
+                <label>Payment Type *</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="payment-amortizing" name="payment-type" value="amortizing" required checked>
+                        <label for="payment-amortizing" style="margin: 0;">Amortizing (Principal + Interest)</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="payment-interest" name="payment-type" value="interest">
+                        <label for="payment-interest" style="margin: 0;">Interest Only</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="loan-term-group">
                 <label for="loan-term">
                     Loan Term (Years) *
                     <div class="help-text">Number of years to repay the loan</div>
@@ -421,12 +521,23 @@
                 <span class="result-value" id="result-income">$0</span>
             </div>
             <div class="result-row">
+                <span class="result-label">Payment Type:</span>
+                <span class="result-value" id="result-payment-type">-</span>
+            </div>
+            <div class="result-row">
                 <span class="result-label">Annual Debt Service:</span>
                 <span class="result-value" id="result-debt">$0</span>
             </div>
             
             <div class="dscr-value" id="dscr-value">0.00</div>
             <div class="dscr-status" id="dscr-status"></div>
+
+            <div class="action-buttons">
+                <button type="button" class="action-btn" onclick="emailResults()">📧 Email Results</button>
+                <button type="button" class="action-btn" onclick="printResults()">🖨️ Print Results</button>
+                <button type="button" class="action-btn" onclick="saveResults()">💾 Save Calculation</button>
+                <button type="button" class="action-btn" onclick="document.getElementById('dscr-form').reset(); results.classList.remove('show');">🔄 New Calculation</button>
+            </div>
         </div>
 
         <div class="note">
@@ -437,6 +548,9 @@
             • Vacant units: 75% of potential rental income<br>
             • With management fee: Subtract management fee from NOI<br>
             • No management fee: Multiply NOI by 92%<br><br>
+            <strong>Payment Types:</strong><br>
+            • Amortizing: Regular principal + interest payments over the loan term<br>
+            • Interest Only: Pay only interest (no principal reduction)<br><br>
             <strong>Formula:</strong> DSCR = Qualifying Income ÷ Annual Debt Service
         </div>
     </div>
@@ -448,9 +562,24 @@
         const mgmtFeeGroup = document.getElementById('mgmt-fee-group');
         const vacantUnitsInput = document.getElementById('vacant-units');
         const vacantIncomeGroup = document.getElementById('vacant-income-group');
+        const paymentAmortizing = document.getElementById('payment-amortizing');
+        const paymentInterest = document.getElementById('payment-interest');
+        const loanTermGroup = document.getElementById('loan-term-group');
+        const loanTermInput = document.getElementById('loan-term');
         const results = document.getElementById('results');
         const egiDisplay = document.getElementById('egi-display');
         const noiDisplay = document.getElementById('noi-display');
+
+        // Show/hide loan term based on payment type
+        paymentAmortizing.addEventListener('change', () => {
+            loanTermGroup.classList.remove('hidden');
+            loanTermInput.required = true;
+        });
+
+        paymentInterest.addEventListener('change', () => {
+            loanTermGroup.classList.add('hidden');
+            loanTermInput.required = false;
+        });
 
         // Show/hide vacant income field based on vacant units
         vacantUnitsInput.addEventListener('input', () => {
@@ -540,7 +669,8 @@
             // Get loan details
             const loanAmount = parseFloat(document.getElementById('loan-amount').value);
             const interestRate = parseFloat(document.getElementById('interest-rate').value) / 100;
-            const loanTerm = parseInt(document.getElementById('loan-term').value);
+            const paymentType = document.querySelector('input[name="payment-type"]:checked').value;
+            const loanTerm = paymentType === 'amortizing' ? parseInt(document.getElementById('loan-term').value) : 0;
 
             // Calculate qualifying income based on lending criteria
             // Note: The management fee adjustment is applied AFTER the vacant unit adjustment
@@ -549,7 +679,7 @@
 
             if (hasMgmtFee && mgmtFee > 0) {
                 qualifyingIncome = noi - mgmtFee;
-                adjustmentText = `Mgmt Fee: -$${mgmtFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                adjustmentText = `Mgmt Fee: -${mgmtFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             } else if (vacantUnits === 0) {
                 // Only apply 92% if there are no vacant units
                 qualifyingIncome = noi * 0.92;
@@ -560,11 +690,19 @@
                 adjustmentText = 'None (Vacancy Already Adjusted)';
             }
 
-            // Calculate monthly payment and annual debt service
-            const monthlyRate = interestRate / 12;
-            const numPayments = loanTerm * 12;
-            const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
-            const annualDebtService = monthlyPayment * 12;
+            // Calculate annual debt service based on payment type
+            let annualDebtService;
+            
+            if (paymentType === 'interest') {
+                // Interest-only: just the annual interest
+                annualDebtService = loanAmount * interestRate;
+            } else {
+                // Amortizing: calculate monthly payment then multiply by 12
+                const monthlyRate = interestRate / 12;
+                const numPayments = loanTerm * 12;
+                const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+                annualDebtService = monthlyPayment * 12;
+            }
 
             // Calculate DSCR
             const dscr = qualifyingIncome / annualDebtService;
@@ -574,10 +712,11 @@
             document.getElementById('result-vacant').textContent = `$${adjustedVacantIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('result-egi').textContent = `$${egi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('result-expenses').textContent = `$${totalExpenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-noi').textContent = `$${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-noi').textContent = `${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('result-adjustment').textContent = adjustmentText;
-            document.getElementById('result-income').textContent = `$${qualifyingIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-debt').textContent = `$${annualDebtService.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-income').textContent = `${qualifyingIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-payment-type').textContent = paymentType === 'interest' ? 'Interest Only' : 'Amortizing';
+            document.getElementById('result-debt').textContent = `${annualDebtService.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
             document.getElementById('dscr-value').textContent = dscr.toFixed(2);
 
             // DSCR status
@@ -599,6 +738,145 @@
             results.classList.add('show');
             results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
+
+        // Email Results
+        function emailResults() {
+            const dscr = document.getElementById('dscr-value').textContent;
+            const qualifyingIncome = document.getElementById('result-income').textContent;
+            const annualDebt = document.getElementById('result-debt').textContent;
+            const status = document.getElementById('dscr-status').textContent;
+
+            const subject = encodeURIComponent('DSCR Calculation Results');
+            const body = encodeURIComponent(
+                `DSCR Calculation Results\n\n` +
+                `DSCR: ${dscr}\n` +
+                `Status: ${status}\n\n` +
+                `Qualifying Income: ${qualifyingIncome}\n` +
+                `Annual Debt Service: ${annualDebt}\n\n` +
+                `For detailed breakdown, please see the attached calculation.`
+            );
+
+            window.location.href = `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        // Print Results
+        function printResults() {
+            window.print();
+        }
+
+        // Save Results
+        function saveResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                inputs: {
+                    totalUnits: document.getElementById('total-units').value,
+                    vacantUnits: document.getElementById('vacant-units').value,
+                    occupiedIncome: document.getElementById('occupied-income').value,
+                    vacantIncome: document.getElementById('vacant-income').value,
+                    propertyTax: document.getElementById('property-tax').value,
+                    insurance: document.getElementById('insurance').value,
+                    utilities: document.getElementById('utilities').value,
+                    maintenance: document.getElementById('maintenance').value,
+                    otherExpenses: document.getElementById('other-expenses').value,
+                    hasMgmtFee: document.querySelector('input[name="management"]:checked')?.value,
+                    mgmtFee: document.getElementById('mgmt-fee').value,
+                    loanAmount: document.getElementById('loan-amount').value,
+                    interestRate: document.getElementById('interest-rate').value,
+                    paymentType: document.querySelector('input[name="payment-type"]:checked')?.value,
+                    loanTerm: document.getElementById('loan-term').value
+                },
+                results: {
+                    occupiedIncome: document.getElementById('result-occupied').textContent,
+                    vacantIncome: document.getElementById('result-vacant').textContent,
+                    egi: document.getElementById('result-egi').textContent,
+                    expenses: document.getElementById('result-expenses').textContent,
+                    noi: document.getElementById('result-noi').textContent,
+                    adjustment: document.getElementById('result-adjustment').textContent,
+                    qualifyingIncome: document.getElementById('result-income').textContent,
+                    paymentType: document.getElementById('result-payment-type').textContent,
+                    annualDebt: document.getElementById('result-debt').textContent,
+                    dscr: document.getElementById('dscr-value').textContent,
+                    status: document.getElementById('dscr-status').textContent
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dscr-calculation-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Load Results
+        document.getElementById('load-file').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    
+                    // Populate all form fields
+                    document.getElementById('total-units').value = data.inputs.totalUnits || '';
+                    document.getElementById('vacant-units').value = data.inputs.vacantUnits || '0';
+                    document.getElementById('occupied-income').value = data.inputs.occupiedIncome || '';
+                    document.getElementById('vacant-income').value = data.inputs.vacantIncome || '0';
+                    document.getElementById('property-tax').value = data.inputs.propertyTax || '';
+                    document.getElementById('insurance').value = data.inputs.insurance || '';
+                    document.getElementById('utilities').value = data.inputs.utilities || '0';
+                    document.getElementById('maintenance').value = data.inputs.maintenance || '0';
+                    document.getElementById('other-expenses').value = data.inputs.otherExpenses || '0';
+                    document.getElementById('loan-amount').value = data.inputs.loanAmount || '';
+                    document.getElementById('interest-rate').value = data.inputs.interestRate || '';
+                    document.getElementById('loan-term').value = data.inputs.loanTerm || '';
+
+                    // Set payment type radio buttons
+                    if (data.inputs.paymentType === 'interest') {
+                        document.getElementById('payment-interest').checked = true;
+                        loanTermGroup.classList.add('hidden');
+                        loanTermInput.required = false;
+                    } else {
+                        document.getElementById('payment-amortizing').checked = true;
+                        loanTermGroup.classList.remove('hidden');
+                        loanTermInput.required = true;
+                    }
+
+                    // Set management fee radio buttons
+                    if (data.inputs.hasMgmtFee === 'yes') {
+                        document.getElementById('mgmt-yes').checked = true;
+                        mgmtFeeGroup.classList.remove('hidden');
+                        document.getElementById('mgmt-fee').value = data.inputs.mgmtFee || '';
+                    } else {
+                        document.getElementById('mgmt-no').checked = true;
+                        mgmtFeeGroup.classList.add('hidden');
+                    }
+
+                    // Trigger vacant units change to show/hide vacant income field
+                    vacantUnitsInput.dispatchEvent(new Event('input'));
+                    
+                    // Update calculations
+                    updateCalculations();
+
+                    // Scroll to form
+                    form.scrollIntoView({ behavior: 'smooth' });
+
+                    alert('Calculation loaded successfully! Review the values and click "Calculate DSCR" to see results.');
+                    
+                } catch (error) {
+                    alert('Error loading file. Please make sure it is a valid DSCR calculation file.');
+                    console.error('Load error:', error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset file input
+            e.target.value = '';
+        });
     </script>
 </body>
 </html>
