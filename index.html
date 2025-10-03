@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Commercial Property DSCR Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .section-header {
+            color: #2d3748;
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .section-header:first-of-type {
+            margin-top: 0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #4a5568;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .help-text {
+            font-size: 12px;
+            color: #718096;
+            font-weight: 400;
+            margin-top: 4px;
+        }
+
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-top: 8px;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .calculated-field {
+            background: #f7fafc;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .calculated-label {
+            color: #4a5568;
+            font-weight: 600;
+        }
+
+        .calculated-value {
+            color: #2d3748;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 12px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #2c5282;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            margin-top: 30px;
+            padding: 25px;
+            background: #f7fafc;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .result-value {
+            color: #2d3748;
+            font-weight: 600;
+        }
+
+        .dscr-value {
+            font-size: 32px;
+            text-align: center;
+            margin: 20px 0;
+            color: #2d3748;
+        }
+
+        .dscr-status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .dscr-status.good {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .dscr-status.warning {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+
+        .dscr-status.poor {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .note {
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            color: #4a5568;
+            line-height: 1.6;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DSCR Calculator</h1>
+        <p class="subtitle">Debt Service Coverage Ratio for 5-8 unit properties</p>
+
+        <form id="dscr-form">
+            <div class="section-header">Property Overview</div>
+            
+            <div class="form-group">
+                <label for="total-units">
+                    Total Number of Units *
+                    <div class="help-text">Total units in the property (5-8)</div>
+                </label>
+                <input type="number" id="total-units" required min="1" max="100" step="1" placeholder="e.g., 8">
+            </div>
+
+            <div class="form-group">
+                <label for="vacant-units">
+                    Number of Vacant Units *
+                    <div class="help-text">How many units are currently empty</div>
+                </label>
+                <input type="number" id="vacant-units" required min="0" step="1" value="0" placeholder="e.g., 0">
+            </div>
+
+            <div class="section-header">Property Income</div>
+            
+            <div class="form-group">
+                <label for="occupied-income">
+                    Annual Income from Occupied Units *
+                    <div class="help-text">Total rent collected per year from rented units</div>
+                </label>
+                <input type="number" id="occupied-income" required min="0" step="0.01" placeholder="e.g., 96000">
+            </div>
+
+            <div class="form-group" id="vacant-income-group">
+                <label for="vacant-income">
+                    Potential Annual Income from Vacant Units *
+                    <div class="help-text">What vacant units could generate if rented at market rate</div>
+                </label>
+                <input type="number" id="vacant-income" min="0" step="0.01" value="0" placeholder="e.g., 24000">
+                <div class="info-box">
+                    Lenders typically apply a 75% factor to vacant unit income to account for risk.
+                </div>
+            </div>
+
+            <div class="section-header">Property Expenses</div>
+
+            <div class="form-group">
+                <label for="property-tax">
+                    Annual Property Taxes *
+                    <div class="help-text">Yearly property tax bill</div>
+                </label>
+                <input type="number" id="property-tax" required min="0" step="0.01" placeholder="e.g., 8000">
+            </div>
+
+            <div class="form-group">
+                <label for="insurance">
+                    Annual Insurance *
+                    <div class="help-text">Property and liability insurance costs per year</div>
+                </label>
+                <input type="number" id="insurance" required min="0" step="0.01" placeholder="e.g., 3000">
+            </div>
+
+            <div class="form-group">
+                <label for="utilities">
+                    Annual Utilities
+                    <div class="help-text">Water, electric, gas paid by owner (if any)</div>
+                </label>
+                <input type="number" id="utilities" min="0" step="0.01" value="0" placeholder="e.g., 2400">
+            </div>
+
+            <div class="form-group">
+                <label for="maintenance">
+                    Annual Maintenance & Repairs
+                    <div class="help-text">Routine maintenance, repairs, landscaping, etc.</div>
+                </label>
+                <input type="number" id="maintenance" min="0" step="0.01" value="0" placeholder="e.g., 5000">
+            </div>
+
+            <div class="form-group">
+                <label for="other-expenses">
+                    Other Annual Operating Expenses
+                    <div class="help-text">HOA fees, pest control, advertising, etc.</div>
+                </label>
+                <input type="number" id="other-expenses" min="0" step="0.01" value="0" placeholder="e.g., 1500">
+            </div>
+
+            <div class="calculated-field">
+                <span class="calculated-label">Effective Gross Income:</span>
+                <span class="calculated-value" id="egi-display">$0</span>
+            </div>
+
+            <div class="calculated-field">
+                <span class="calculated-label">Net Operating Income (NOI):</span>
+                <span class="calculated-value" id="noi-display">$0</span>
+            </div>
+
+            <div class="section-header">Adjustments</div>
+
+            <div class="form-group">
+                <label>Does the appraisal report include a management fee? *</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" id="mgmt-yes" name="management" value="yes" required>
+                        <label for="mgmt-yes" style="margin: 0;">Yes</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" id="mgmt-no" name="management" value="no">
+                        <label for="mgmt-no" style="margin: 0;">No</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group hidden" id="mgmt-fee-group">
+                <label for="mgmt-fee">
+                    Annual Management Fee
+                    <div class="help-text">Management fee amount from appraisal report</div>
+                </label>
+                <input type="number" id="mgmt-fee" min="0" step="0.01" placeholder="e.g., 6000">
+            </div>
+
+            <div class="section-header">Loan Details</div>
+
+            <div class="form-group">
+                <label for="loan-amount">
+                    Loan Amount *
+                    <div class="help-text">Total amount you're borrowing</div>
+                </label>
+                <input type="number" id="loan-amount" required min="0" step="0.01" placeholder="e.g., 800000">
+            </div>
+
+            <div class="form-group">
+                <label for="interest-rate">
+                    Interest Rate (%) *
+                    <div class="help-text">Annual interest rate for the loan</div>
+                </label>
+                <input type="number" id="interest-rate" required min="0" max="100" step="0.01" placeholder="e.g., 7.5">
+            </div>
+
+            <div class="form-group">
+                <label for="loan-term">
+                    Loan Term (Years) *
+                    <div class="help-text">Number of years to repay the loan</div>
+                </label>
+                <input type="number" id="loan-term" required min="1" max="50" step="1" placeholder="e.g., 30">
+            </div>
+
+            <button type="submit">Calculate DSCR</button>
+        </form>
+
+        <div class="results" id="results">
+            <div class="result-row">
+                <span class="result-label">Occupied Unit Income:</span>
+                <span class="result-value" id="result-occupied">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Vacant Unit Income (75%):</span>
+                <span class="result-value" id="result-vacant">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Effective Gross Income:</span>
+                <span class="result-value" id="result-egi">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Total Operating Expenses:</span>
+                <span class="result-value" id="result-expenses">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Net Operating Income:</span>
+                <span class="result-value" id="result-noi">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Additional Adjustment:</span>
+                <span class="result-value" id="result-adjustment">-</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Qualifying Income:</span>
+                <span class="result-value" id="result-income">$0</span>
+            </div>
+            <div class="result-row">
+                <span class="result-label">Annual Debt Service:</span>
+                <span class="result-value" id="result-debt">$0</span>
+            </div>
+            
+            <div class="dscr-value" id="dscr-value">0.00</div>
+            <div class="dscr-status" id="dscr-status"></div>
+        </div>
+
+        <div class="note">
+            <strong>Understanding DSCR:</strong><br>
+            DSCR (Debt Service Coverage Ratio) measures if your property generates enough income to cover loan payments. Most lenders require a minimum DSCR of 1.20-1.25.<br><br>
+            <strong>How qualifying income is calculated:</strong><br>
+            • Occupied units: 100% of actual rental income<br>
+            • Vacant units: 75% of potential rental income<br>
+            • With management fee: Subtract management fee from NOI<br>
+            • No management fee: Multiply NOI by 92%<br><br>
+            <strong>Formula:</strong> DSCR = Qualifying Income ÷ Annual Debt Service
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('dscr-form');
+        const mgmtYes = document.getElementById('mgmt-yes');
+        const mgmtNo = document.getElementById('mgmt-no');
+        const mgmtFeeGroup = document.getElementById('mgmt-fee-group');
+        const vacantUnitsInput = document.getElementById('vacant-units');
+        const vacantIncomeGroup = document.getElementById('vacant-income-group');
+        const results = document.getElementById('results');
+        const egiDisplay = document.getElementById('egi-display');
+        const noiDisplay = document.getElementById('noi-display');
+
+        // Show/hide vacant income field based on vacant units
+        vacantUnitsInput.addEventListener('input', () => {
+            const vacantUnits = parseInt(vacantUnitsInput.value) || 0;
+            if (vacantUnits > 0) {
+                vacantIncomeGroup.classList.remove('hidden');
+                document.getElementById('vacant-income').required = true;
+            } else {
+                vacantIncomeGroup.classList.add('hidden');
+                document.getElementById('vacant-income').required = false;
+                document.getElementById('vacant-income').value = 0;
+            }
+            updateCalculations();
+        });
+
+        // Calculate and display EGI and NOI in real-time
+        const allInputs = [
+            'occupied-income', 'vacant-income', 'property-tax', 'insurance', 
+            'utilities', 'maintenance', 'other-expenses'
+        ];
+
+        allInputs.forEach(id => {
+            document.getElementById(id).addEventListener('input', updateCalculations);
+        });
+
+        function updateCalculations() {
+            const occupiedIncome = parseFloat(document.getElementById('occupied-income').value) || 0;
+            const vacantIncome = parseFloat(document.getElementById('vacant-income').value) || 0;
+            const vacantUnits = parseInt(document.getElementById('vacant-units').value) || 0;
+            
+            // Apply 75% to vacant unit income
+            const adjustedVacantIncome = vacantUnits > 0 ? vacantIncome * 0.75 : 0;
+            const egi = occupiedIncome + adjustedVacantIncome;
+            
+            const propertyTax = parseFloat(document.getElementById('property-tax').value) || 0;
+            const insurance = parseFloat(document.getElementById('insurance').value) || 0;
+            const utilities = parseFloat(document.getElementById('utilities').value) || 0;
+            const maintenance = parseFloat(document.getElementById('maintenance').value) || 0;
+            const otherExpenses = parseFloat(document.getElementById('other-expenses').value) || 0;
+
+            const totalExpenses = propertyTax + insurance + utilities + maintenance + otherExpenses;
+            const noi = egi - totalExpenses;
+
+            egiDisplay.textContent = `$${egi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            noiDisplay.textContent = `$${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        }
+
+        // Show/hide management fee input
+        mgmtYes.addEventListener('change', () => {
+            mgmtFeeGroup.classList.remove('hidden');
+        });
+
+        mgmtNo.addEventListener('change', () => {
+            mgmtFeeGroup.classList.add('hidden');
+            document.getElementById('mgmt-fee').value = '';
+        });
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            calculateDSCR();
+        });
+
+        function calculateDSCR() {
+            // Calculate income
+            const occupiedIncome = parseFloat(document.getElementById('occupied-income').value);
+            const vacantIncome = parseFloat(document.getElementById('vacant-income').value) || 0;
+            const vacantUnits = parseInt(document.getElementById('vacant-units').value) || 0;
+            
+            // Apply 75% to vacant unit income only
+            const adjustedVacantIncome = vacantUnits > 0 ? vacantIncome * 0.75 : 0;
+            const egi = occupiedIncome + adjustedVacantIncome;
+
+            // Calculate expenses
+            const propertyTax = parseFloat(document.getElementById('property-tax').value);
+            const insurance = parseFloat(document.getElementById('insurance').value);
+            const utilities = parseFloat(document.getElementById('utilities').value) || 0;
+            const maintenance = parseFloat(document.getElementById('maintenance').value) || 0;
+            const otherExpenses = parseFloat(document.getElementById('other-expenses').value) || 0;
+
+            const totalExpenses = propertyTax + insurance + utilities + maintenance + otherExpenses;
+            const noi = egi - totalExpenses;
+
+            // Get adjustment factors
+            const hasMgmtFee = document.querySelector('input[name="management"]:checked').value === 'yes';
+            const mgmtFee = hasMgmtFee ? parseFloat(document.getElementById('mgmt-fee').value) || 0 : 0;
+            
+            // Get loan details
+            const loanAmount = parseFloat(document.getElementById('loan-amount').value);
+            const interestRate = parseFloat(document.getElementById('interest-rate').value) / 100;
+            const loanTerm = parseInt(document.getElementById('loan-term').value);
+
+            // Calculate qualifying income based on lending criteria
+            // Note: The management fee adjustment is applied AFTER the vacant unit adjustment
+            let qualifyingIncome;
+            let adjustmentText;
+
+            if (hasMgmtFee && mgmtFee > 0) {
+                qualifyingIncome = noi - mgmtFee;
+                adjustmentText = `Mgmt Fee: -$${mgmtFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            } else if (vacantUnits === 0) {
+                // Only apply 92% if there are no vacant units
+                qualifyingIncome = noi * 0.92;
+                adjustmentText = 'NOI × 92% (No Mgmt Fee)';
+            } else {
+                // If there are vacant units, the 75% is already applied, no additional adjustment
+                qualifyingIncome = noi;
+                adjustmentText = 'None (Vacancy Already Adjusted)';
+            }
+
+            // Calculate monthly payment and annual debt service
+            const monthlyRate = interestRate / 12;
+            const numPayments = loanTerm * 12;
+            const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+            const annualDebtService = monthlyPayment * 12;
+
+            // Calculate DSCR
+            const dscr = qualifyingIncome / annualDebtService;
+
+            // Display results
+            document.getElementById('result-occupied').textContent = `$${occupiedIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-vacant').textContent = `$${adjustedVacantIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-egi').textContent = `$${egi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-expenses').textContent = `$${totalExpenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-noi').textContent = `$${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-adjustment').textContent = adjustmentText;
+            document.getElementById('result-income').textContent = `$${qualifyingIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-debt').textContent = `$${annualDebtService.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('dscr-value').textContent = dscr.toFixed(2);
+
+            // DSCR status
+            const statusEl = document.getElementById('dscr-status');
+            if (dscr >= 1.25) {
+                statusEl.textContent = 'Excellent - Strong Likelihood of Approval';
+                statusEl.className = 'dscr-status good';
+            } else if (dscr >= 1.20) {
+                statusEl.textContent = 'Good - Meets Typical Minimum Requirements';
+                statusEl.className = 'dscr-status good';
+            } else if (dscr >= 1.00) {
+                statusEl.textContent = 'Fair - May Require Additional Review';
+                statusEl.className = 'dscr-status warning';
+            } else {
+                statusEl.textContent = 'Below Minimum - May Not Qualify';
+                statusEl.className = 'dscr-status poor';
+            }
+
+            results.classList.add('show');
+            results.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    </script>
+</body>
+</html>
