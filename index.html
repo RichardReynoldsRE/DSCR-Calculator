@@ -76,6 +76,7 @@
         }
 
         input[type="number"],
+        input[type="text"],
         select {
             width: 100%;
             padding: 12px;
@@ -86,6 +87,7 @@
         }
 
         input[type="number"]:focus,
+        input[type="text"]:focus,
         select:focus {
             outline: none;
             border-color: #667eea;
@@ -371,7 +373,7 @@
                 <input type="number" id="occupied-income" required min="0" step="0.01" placeholder="e.g., 96000">
             </div>
 
-            <div class="form-group" id="vacant-income-group">
+            <div class="form-group hidden" id="vacant-income-group">
                 <label for="vacant-income">
                     Potential Annual Income from Vacant Units *
                     <div class="help-text">What vacant units could generate if rented at market rate</div>
@@ -444,7 +446,7 @@
                         <label for="mgmt-yes" style="margin: 0;">Yes</label>
                     </div>
                     <div class="radio-option">
-                        <input type="radio" id="mgmt-no" name="management" value="no">
+                        <input type="radio" id="mgmt-no" name="management" value="no" checked>
                         <label for="mgmt-no" style="margin: 0;">No</label>
                     </div>
                 </div>
@@ -575,7 +577,7 @@
                 <button type="button" class="action-btn" onclick="emailResults()">📧 Email Results</button>
                 <button type="button" class="action-btn" onclick="printResults()">🖨️ Print Results</button>
                 <button type="button" class="action-btn" onclick="saveResults()">💾 Save Calculation</button>
-                <button type="button" class="action-btn" onclick="document.getElementById('dscr-form').reset(); results.classList.remove('show');">🔄 New Calculation</button>
+                <button type="button" class="action-btn" onclick="resetForm()">🔄 New Calculation</button>
             </div>
         </div>
 
@@ -598,172 +600,190 @@
     </div>
 
     <script>
+        // Get all DOM elements
         const form = document.getElementById('dscr-form');
+        const results = document.getElementById('results');
+        
+        // Form fields
+        const propertyAddressInput = document.getElementById('property-address');
+        const totalUnitsInput = document.getElementById('total-units');
+        const vacantUnitsInput = document.getElementById('vacant-units');
+        const occupiedIncomeInput = document.getElementById('occupied-income');
+        const vacantIncomeInput = document.getElementById('vacant-income');
+        const propertyTaxInput = document.getElementById('property-tax');
+        const insuranceInput = document.getElementById('insurance');
+        const utilitiesInput = document.getElementById('utilities');
+        const maintenanceInput = document.getElementById('maintenance');
+        const otherExpensesInput = document.getElementById('other-expenses');
+        const purchasePriceInput = document.getElementById('purchase-price');
+        const downPaymentInput = document.getElementById('down-payment');
+        const interestRateInput = document.getElementById('interest-rate');
+        const loanTermInput = document.getElementById('loan-term');
+        
+        // Radio buttons
         const mgmtYes = document.getElementById('mgmt-yes');
         const mgmtNo = document.getElementById('mgmt-no');
+        const mgmtFeeInput = document.getElementById('mgmt-fee');
         const mgmtFeeGroup = document.getElementById('mgmt-fee-group');
-        const vacantUnitsInput = document.getElementById('vacant-units');
-        const vacantIncomeGroup = document.getElementById('vacant-income-group');
         const paymentAmortizing = document.getElementById('payment-amortizing');
         const paymentInterest = document.getElementById('payment-interest');
         const loanTermGroup = document.getElementById('loan-term-group');
-        const loanTermInput = document.getElementById('loan-term');
-        const results = document.getElementById('results');
+        
+        // Display elements
+        const vacantIncomeGroup = document.getElementById('vacant-income-group');
         const egiDisplay = document.getElementById('egi-display');
         const noiDisplay = document.getElementById('noi-display');
         const loanAmountDisplay = document.getElementById('loan-amount-display');
 
-        // Calculate and display loan amount in real-time
-        const purchasePriceInput = document.getElementById('purchase-price');
-        const downPaymentInput = document.getElementById('down-payment');
+        // Show/hide vacant income field based on vacant units
+        vacantUnitsInput.addEventListener('input', function() {
+            const vacantUnits = parseInt(this.value) || 0;
+            if (vacantUnits > 0) {
+                vacantIncomeGroup.classList.remove('hidden');
+                vacantIncomeInput.required = true;
+            } else {
+                vacantIncomeGroup.classList.add('hidden');
+                vacantIncomeInput.required = false;
+                vacantIncomeInput.value = 0;
+            }
+            updateRealTimeCalculations();
+        });
 
-        function updateLoanAmount() {
-            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
-            const downPaymentPct = parseFloat(downPaymentInput.value) || 0;
-            const loanAmount = purchasePrice * (1 - downPaymentPct / 100);
-            loanAmountDisplay.textContent = `${loanAmount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        }
+        // Show/hide management fee input
+        mgmtYes.addEventListener('change', function() {
+            mgmtFeeGroup.classList.remove('hidden');
+        });
 
-        purchasePriceInput.addEventListener('input', updateLoanAmount);
-        downPaymentInput.addEventListener('input', updateLoanAmount);
+        mgmtNo.addEventListener('change', function() {
+            mgmtFeeGroup.classList.add('hidden');
+            mgmtFeeInput.value = '';
+        });
 
         // Show/hide loan term based on payment type
-        paymentAmortizing.addEventListener('change', () => {
+        paymentAmortizing.addEventListener('change', function() {
             loanTermGroup.classList.remove('hidden');
             loanTermInput.required = true;
         });
 
-        paymentInterest.addEventListener('change', () => {
+        paymentInterest.addEventListener('change', function() {
             loanTermGroup.classList.add('hidden');
             loanTermInput.required = false;
         });
 
-        // Show/hide vacant income field based on vacant units
-        vacantUnitsInput.addEventListener('input', () => {
-            const vacantUnits = parseInt(vacantUnitsInput.value) || 0;
-            if (vacantUnits > 0) {
-                vacantIncomeGroup.classList.remove('hidden');
-                document.getElementById('vacant-income').required = true;
-            } else {
-                vacantIncomeGroup.classList.add('hidden');
-                document.getElementById('vacant-income').required = false;
-                document.getElementById('vacant-income').value = 0;
-            }
-            updateCalculations();
-        });
-
-        // Calculate and display EGI and NOI in real-time
-        const allInputs = [
-            'occupied-income', 'vacant-income', 'property-tax', 'insurance', 
-            'utilities', 'maintenance', 'other-expenses'
+        // Real-time calculation updates
+        const incomeExpenseInputs = [
+            occupiedIncomeInput, vacantIncomeInput, propertyTaxInput, 
+            insuranceInput, utilitiesInput, maintenanceInput, otherExpensesInput
         ];
 
-        allInputs.forEach(id => {
-            document.getElementById(id).addEventListener('input', updateCalculations);
+        incomeExpenseInputs.forEach(input => {
+            input.addEventListener('input', updateRealTimeCalculations);
         });
 
-        function updateCalculations() {
-            const occupiedIncome = parseFloat(document.getElementById('occupied-income').value) || 0;
-            const vacantIncome = parseFloat(document.getElementById('vacant-income').value) || 0;
-            const vacantUnits = parseInt(document.getElementById('vacant-units').value) || 0;
+        purchasePriceInput.addEventListener('input', updateLoanAmountDisplay);
+        downPaymentInput.addEventListener('input', updateLoanAmountDisplay);
+
+        function updateLoanAmountDisplay() {
+            const purchasePrice = parseFloat(purchasePriceInput.value) || 0;
+            const downPaymentPct = parseFloat(downPaymentInput.value) || 0;
+            const calculatedLoan = purchasePrice * (1 - downPaymentPct / 100);
+            loanAmountDisplay.textContent = formatCurrency(calculatedLoan);
+        }
+
+        function updateRealTimeCalculations() {
+            const occupiedIncome = parseFloat(occupiedIncomeInput.value) || 0;
+            const vacantIncome = parseFloat(vacantIncomeInput.value) || 0;
+            const vacantUnits = parseInt(vacantUnitsInput.value) || 0;
             
             // Apply 75% to vacant unit income
             const adjustedVacantIncome = vacantUnits > 0 ? vacantIncome * 0.75 : 0;
             const egi = occupiedIncome + adjustedVacantIncome;
             
-            const propertyTax = parseFloat(document.getElementById('property-tax').value) || 0;
-            const insurance = parseFloat(document.getElementById('insurance').value) || 0;
-            const utilities = parseFloat(document.getElementById('utilities').value) || 0;
-            const maintenance = parseFloat(document.getElementById('maintenance').value) || 0;
-            const otherExpenses = parseFloat(document.getElementById('other-expenses').value) || 0;
+            const propertyTax = parseFloat(propertyTaxInput.value) || 0;
+            const insurance = parseFloat(insuranceInput.value) || 0;
+            const utilities = parseFloat(utilitiesInput.value) || 0;
+            const maintenance = parseFloat(maintenanceInput.value) || 0;
+            const otherExpenses = parseFloat(otherExpensesInput.value) || 0;
 
             const totalExpenses = propertyTax + insurance + utilities + maintenance + otherExpenses;
             const noi = egi - totalExpenses;
 
-            egiDisplay.textContent = `$${egi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            noiDisplay.textContent = `$${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            egiDisplay.textContent = formatCurrency(egi);
+            noiDisplay.textContent = formatCurrency(noi);
         }
 
-        // Show/hide management fee input
-        mgmtYes.addEventListener('change', () => {
-            mgmtFeeGroup.classList.remove('hidden');
-        });
+        function formatCurrency(value) {
+            return '$' + value.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        }
 
-        mgmtNo.addEventListener('change', () => {
-            mgmtFeeGroup.classList.add('hidden');
-            document.getElementById('mgmt-fee').value = '';
-        });
-
-        form.addEventListener('submit', (e) => {
+        // Form submission
+        form.addEventListener('submit', function(e) {
             e.preventDefault();
             calculateDSCR();
         });
 
         function calculateDSCR() {
-            // Get property address
-            const propertyAddress = document.getElementById('property-address').value;
+            // Get property info
+            const propertyAddress = propertyAddressInput.value;
+            const totalUnits = totalUnitsInput.value;
+            const vacantUnits = parseInt(vacantUnitsInput.value) || 0;
             
             // Calculate income
-            const occupiedIncome = parseFloat(document.getElementById('occupied-income').value);
-            const vacantIncome = parseFloat(document.getElementById('vacant-income').value) || 0;
-            const vacantUnits = parseInt(document.getElementById('vacant-units').value) || 0;
-            
-            // Apply 75% to vacant unit income only
+            const occupiedIncome = parseFloat(occupiedIncomeInput.value);
+            const vacantIncome = parseFloat(vacantIncomeInput.value) || 0;
             const adjustedVacantIncome = vacantUnits > 0 ? vacantIncome * 0.75 : 0;
             const egi = occupiedIncome + adjustedVacantIncome;
 
             // Calculate expenses
-            const propertyTax = parseFloat(document.getElementById('property-tax').value);
-            const insurance = parseFloat(document.getElementById('insurance').value);
-            const utilities = parseFloat(document.getElementById('utilities').value) || 0;
-            const maintenance = parseFloat(document.getElementById('maintenance').value) || 0;
-            const otherExpenses = parseFloat(document.getElementById('other-expenses').value) || 0;
-
+            const propertyTax = parseFloat(propertyTaxInput.value);
+            const insurance = parseFloat(insuranceInput.value);
+            const utilities = parseFloat(utilitiesInput.value) || 0;
+            const maintenance = parseFloat(maintenanceInput.value) || 0;
+            const otherExpenses = parseFloat(otherExpensesInput.value) || 0;
             const totalExpenses = propertyTax + insurance + utilities + maintenance + otherExpenses;
             const noi = egi - totalExpenses;
 
-            // Get adjustment factors
+            // Get adjustments
             const hasMgmtFee = document.querySelector('input[name="management"]:checked').value === 'yes';
-            const mgmtFee = hasMgmtFee ? parseFloat(document.getElementById('mgmt-fee').value) || 0 : 0;
+            const mgmtFee = hasMgmtFee ? parseFloat(mgmtFeeInput.value) || 0 : 0;
             
-            // Get loan details - calculate loan amount from purchase price and down payment
-            const purchasePrice = parseFloat(document.getElementById('purchase-price').value);
-            const downPaymentPct = parseFloat(document.getElementById('down-payment').value);
+            // Calculate loan details
+            const purchasePrice = parseFloat(purchasePriceInput.value);
+            const downPaymentPct = parseFloat(downPaymentInput.value);
             const downPaymentAmount = purchasePrice * (downPaymentPct / 100);
-            const loanAmount = purchasePrice - downPaymentAmount;
-            const interestRate = parseFloat(document.getElementById('interest-rate').value) / 100;
+            const finalLoanAmount = purchasePrice - downPaymentAmount;
+            
+            const interestRate = parseFloat(interestRateInput.value) / 100;
             const paymentType = document.querySelector('input[name="payment-type"]:checked').value;
-            const loanTerm = paymentType === 'amortizing' ? parseInt(document.getElementById('loan-term').value) : 0;
+            const loanTerm = paymentType === 'amortizing' ? parseInt(loanTermInput.value) : 0;
 
-            // Calculate qualifying income based on lending criteria
-            // Note: The management fee adjustment is applied AFTER the vacant unit adjustment
+            // Calculate qualifying income
             let qualifyingIncome;
             let adjustmentText;
 
             if (hasMgmtFee && mgmtFee > 0) {
                 qualifyingIncome = noi - mgmtFee;
-                adjustmentText = `Mgmt Fee: -${mgmtFee.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                adjustmentText = `Mgmt Fee: -${formatCurrency(mgmtFee)}`;
             } else if (vacantUnits === 0) {
-                // Only apply 92% if there are no vacant units
                 qualifyingIncome = noi * 0.92;
                 adjustmentText = 'NOI × 92% (No Mgmt Fee)';
             } else {
-                // If there are vacant units, the 75% is already applied, no additional adjustment
                 qualifyingIncome = noi;
                 adjustmentText = 'None (Vacancy Already Adjusted)';
             }
 
-            // Calculate annual debt service based on payment type
+            // Calculate annual debt service
             let annualDebtService;
             
             if (paymentType === 'interest') {
-                // Interest-only: just the annual interest
-                annualDebtService = loanAmount * interestRate;
+                annualDebtService = finalLoanAmount * interestRate;
             } else {
-                // Amortizing: calculate monthly payment then multiply by 12
                 const monthlyRate = interestRate / 12;
                 const numPayments = loanTerm * 12;
-                const monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+                const monthlyPayment = finalLoanAmount * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
                 annualDebtService = monthlyPayment * 12;
             }
 
@@ -771,15 +791,25 @@
             const dscr = qualifyingIncome / annualDebtService;
 
             // Display results
-            document.getElementById('result-occupied').textContent = `$${occupiedIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-vacant').textContent = `$${adjustedVacantIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-egi').textContent = `$${egi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-expenses').textContent = `$${totalExpenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-            document.getElementById('result-noi').textContent = `${noi.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            if (propertyAddress) {
+                document.getElementById('address-result').style.display = 'flex';
+                document.getElementById('result-address').textContent = propertyAddress;
+            } else {
+                document.getElementById('address-result').style.display = 'none';
+            }
+            
+            document.getElementById('result-purchase-price').textContent = formatCurrency(purchasePrice);
+            document.getElementById('result-down-payment').textContent = `${formatCurrency(downPaymentAmount)} (${downPaymentPct}%)`;
+            document.getElementById('result-loan-amount').textContent = formatCurrency(finalLoanAmount);
+            document.getElementById('result-occupied').textContent = formatCurrency(occupiedIncome);
+            document.getElementById('result-vacant').textContent = formatCurrency(adjustedVacantIncome);
+            document.getElementById('result-egi').textContent = formatCurrency(egi);
+            document.getElementById('result-expenses').textContent = formatCurrency(totalExpenses);
+            document.getElementById('result-noi').textContent = formatCurrency(noi);
             document.getElementById('result-adjustment').textContent = adjustmentText;
-            document.getElementById('result-income').textContent = `${qualifyingIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-income').textContent = formatCurrency(qualifyingIncome);
             document.getElementById('result-payment-type').textContent = paymentType === 'interest' ? 'Interest Only' : 'Amortizing';
-            document.getElementById('result-debt').textContent = `${annualDebtService.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+            document.getElementById('result-debt').textContent = formatCurrency(annualDebtService);
             document.getElementById('dscr-value').textContent = dscr.toFixed(2);
 
             // DSCR status
@@ -804,24 +834,18 @@
 
         // Email Results
         function emailResults() {
-            // Get data directly from inputs for accuracy
-            const propertyAddress = document.getElementById('property-address').value || 'Not specified';
-            const totalUnits = document.getElementById('total-units').value;
-            const vacantUnits = document.getElementById('vacant-units').value;
-            const purchasePrice = parseFloat(document.getElementById('purchase-price').value);
-            const downPaymentPct = parseFloat(document.getElementById('down-payment').value);
+            const propertyAddress = propertyAddressInput.value || 'Not specified';
+            const totalUnits = totalUnitsInput.value;
+            const vacantUnits = vacantUnitsInput.value;
+            
+            const purchasePrice = parseFloat(purchasePriceInput.value);
+            const downPaymentPct = parseFloat(downPaymentInput.value);
             const downPaymentAmount = purchasePrice * (downPaymentPct / 100);
-            const loanAmount = purchasePrice - downPaymentAmount;
-            const interestRate = document.getElementById('interest-rate').value;
+            const finalLoanAmount = purchasePrice - downPaymentAmount;
+            const interestRate = interestRateInput.value;
             const paymentType = document.querySelector('input[name="payment-type"]:checked').value;
-            const loanTerm = document.getElementById('loan-term').value;
+            const loanTerm = loanTermInput.value;
 
-            // Get results from display
-            const occupiedIncome = document.getElementById('result-occupied').textContent;
-            const vacantIncome = document.getElementById('result-vacant').textContent;
-            const egi = document.getElementById('result-egi').textContent;
-            const downPayment = document.getElementById('result-down-payment').textContent;
-            const loanAmount = document.getElementById('result-loan-amount').textContent;
             const occupiedIncome = document.getElementById('result-occupied').textContent;
             const vacantIncome = document.getElementById('result-vacant').textContent;
             const egi = document.getElementById('result-egi').textContent;
@@ -829,14 +853,14 @@
             const noi = document.getElementById('result-noi').textContent;
             const adjustment = document.getElementById('result-adjustment').textContent;
             const qualifyingIncome = document.getElementById('result-income').textContent;
-            const paymentType = document.getElementById('result-payment-type').textContent;
+            const paymentTypeDisplay = document.getElementById('result-payment-type').textContent;
             const annualDebt = document.getElementById('result-debt').textContent;
             const dscr = document.getElementById('dscr-value').textContent;
             const status = document.getElementById('dscr-status').textContent;
 
-            const addressLine = propertyAddress !== '-' ? `Property Address: ${propertyAddress}\n` : '';
+            const addressLine = propertyAddress !== 'Not specified' ? `Property Address: ${propertyAddress}\n` : '';
 
-            const subject = encodeURIComponent('DSCR Calculation Results' + (propertyAddress !== '-' ? ` - ${propertyAddress}` : ''));
+            const subject = encodeURIComponent('DSCR Calculation Results' + (propertyAddress !== 'Not specified' ? ` - ${propertyAddress}` : ''));
             const body = encodeURIComponent(
                 `DEBT SERVICE COVERAGE RATIO (DSCR) CALCULATION\n` +
                 `Generated: ${new Date().toLocaleString()}\n\n` +
@@ -844,17 +868,17 @@
                 `PROPERTY INFORMATION\n` +
                 `═══════════════════════════════════════════════\n` +
                 `${addressLine}` +
-                `Total Units: ${document.getElementById('total-units').value}\n` +
-                `Vacant Units: ${document.getElementById('vacant-units').value}\n\n` +
+                `Total Units: ${totalUnits}\n` +
+                `Vacant Units: ${vacantUnits}\n\n` +
                 `═══════════════════════════════════════════════\n` +
                 `FINANCIAL OVERVIEW\n` +
                 `═══════════════════════════════════════════════\n` +
-                `Purchase Price: ${purchasePrice}\n` +
-                `Down Payment: ${downPayment}\n` +
-                `Loan Amount: ${loanAmount}\n` +
-                `Interest Rate: ${document.getElementById('interest-rate').value}%\n` +
-                `Payment Type: ${paymentType}\n` +
-                (paymentType === 'Amortizing' ? `Loan Term: ${document.getElementById('loan-term').value} years\n` : '') +
+                `Purchase Price: ${formatCurrency(purchasePrice)}\n` +
+                `Down Payment: ${formatCurrency(downPaymentAmount)} (${downPaymentPct}%)\n` +
+                `Loan Amount: ${formatCurrency(finalLoanAmount)}\n` +
+                `Interest Rate: ${interestRate}%\n` +
+                `Payment Type: ${paymentTypeDisplay}\n` +
+                (paymentTypeDisplay === 'Amortizing' ? `Loan Term: ${loanTerm} years\n` : '') +
                 `\n═══════════════════════════════════════════════\n` +
                 `INCOME ANALYSIS\n` +
                 `═══════════════════════════════════════════════\n` +
@@ -864,11 +888,11 @@
                 `═══════════════════════════════════════════════\n` +
                 `EXPENSES\n` +
                 `═══════════════════════════════════════════════\n` +
-                `Property Taxes: ${document.getElementById('property-tax').value}\n` +
-                `Insurance: ${document.getElementById('insurance').value}\n` +
-                `Utilities: ${document.getElementById('utilities').value || '0'}\n` +
-                `Maintenance: ${document.getElementById('maintenance').value || '0'}\n` +
-                `Other Expenses: ${document.getElementById('other-expenses').value || '0'}\n` +
+                `Property Taxes: ${formatCurrency(parseFloat(propertyTaxInput.value))}\n` +
+                `Insurance: ${formatCurrency(parseFloat(insuranceInput.value))}\n` +
+                `Utilities: ${formatCurrency(parseFloat(utilitiesInput.value) || 0)}\n` +
+                `Maintenance: ${formatCurrency(parseFloat(maintenanceInput.value) || 0)}\n` +
+                `Other Expenses: ${formatCurrency(parseFloat(otherExpensesInput.value) || 0)}\n` +
                 `Total Operating Expenses: ${expenses}\n\n` +
                 `═══════════════════════════════════════════════\n` +
                 `DSCR CALCULATION\n` +
@@ -900,26 +924,26 @@
             const data = {
                 timestamp: new Date().toISOString(),
                 inputs: {
-                    propertyAddress: document.getElementById('property-address').value,
-                    totalUnits: document.getElementById('total-units').value,
-                    vacantUnits: document.getElementById('vacant-units').value,
-                    occupiedIncome: document.getElementById('occupied-income').value,
-                    vacantIncome: document.getElementById('vacant-income').value,
-                    propertyTax: document.getElementById('property-tax').value,
-                    insurance: document.getElementById('insurance').value,
-                    utilities: document.getElementById('utilities').value,
-                    maintenance: document.getElementById('maintenance').value,
-                    otherExpenses: document.getElementById('other-expenses').value,
+                    propertyAddress: propertyAddressInput.value,
+                    totalUnits: totalUnitsInput.value,
+                    vacantUnits: vacantUnitsInput.value,
+                    occupiedIncome: occupiedIncomeInput.value,
+                    vacantIncome: vacantIncomeInput.value,
+                    propertyTax: propertyTaxInput.value,
+                    insurance: insuranceInput.value,
+                    utilities: utilitiesInput.value,
+                    maintenance: maintenanceInput.value,
+                    otherExpenses: otherExpensesInput.value,
                     hasMgmtFee: document.querySelector('input[name="management"]:checked')?.value,
-                    mgmtFee: document.getElementById('mgmt-fee').value,
-                    purchasePrice: document.getElementById('purchase-price').value,
-                    downPayment: document.getElementById('down-payment').value,
-                    interestRate: document.getElementById('interest-rate').value,
+                    mgmtFee: mgmtFeeInput.value,
+                    purchasePrice: purchasePriceInput.value,
+                    downPayment: downPaymentInput.value,
+                    interestRate: interestRateInput.value,
                     paymentType: document.querySelector('input[name="payment-type"]:checked')?.value,
-                    loanTerm: document.getElementById('loan-term').value
+                    loanTerm: loanTermInput.value
                 },
                 results: {
-                    propertyAddress: document.getElementById('property-address').value || 'Not specified',
+                    propertyAddress: propertyAddressInput.value || 'Not specified',
                     purchasePrice: document.getElementById('result-purchase-price').textContent,
                     downPayment: document.getElementById('result-down-payment').textContent,
                     loanAmount: document.getElementById('result-loan-amount').textContent,
@@ -948,7 +972,19 @@
             URL.revokeObjectURL(url);
         }
 
-        // Load Results
+        // Reset Form
+        function resetForm() {
+            form.reset();
+            results.classList.remove('show');
+            vacantIncomeGroup.classList.add('hidden');
+            mgmtFeeGroup.classList.add('hidden');
+            loanTermGroup.classList.remove('hidden');
+            egiDisplay.textContent = '$0';
+            noiDisplay.textContent = '$0';
+            loanAmountDisplay.textContent = '$0';
+        }
+
+        // Load File
         document.getElementById('load-file').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -959,63 +995,58 @@
                     const data = JSON.parse(event.target.result);
                     
                     // Populate all form fields
-                    document.getElementById('property-address').value = data.inputs.propertyAddress || '';
-                    document.getElementById('total-units').value = data.inputs.totalUnits || '';
-                    document.getElementById('vacant-units').value = data.inputs.vacantUnits || '0';
-                    document.getElementById('occupied-income').value = data.inputs.occupiedIncome || '';
-                    document.getElementById('vacant-income').value = data.inputs.vacantIncome || '0';
-                    document.getElementById('property-tax').value = data.inputs.propertyTax || '';
-                    document.getElementById('insurance').value = data.inputs.insurance || '';
-                    document.getElementById('utilities').value = data.inputs.utilities || '0';
-                    document.getElementById('maintenance').value = data.inputs.maintenance || '0';
-                    document.getElementById('other-expenses').value = data.inputs.otherExpenses || '0';
+                    propertyAddressInput.value = data.inputs.propertyAddress || '';
+                    totalUnitsInput.value = data.inputs.totalUnits || '';
+                    vacantUnitsInput.value = data.inputs.vacantUnits || '0';
+                    occupiedIncomeInput.value = data.inputs.occupiedIncome || '';
+                    vacantIncomeInput.value = data.inputs.vacantIncome || '0';
+                    propertyTaxInput.value = data.inputs.propertyTax || '';
+                    insuranceInput.value = data.inputs.insurance || '';
+                    utilitiesInput.value = data.inputs.utilities || '0';
+                    maintenanceInput.value = data.inputs.maintenance || '0';
+                    otherExpensesInput.value = data.inputs.otherExpenses || '0';
                     
-                    // Handle both old and new format (loanAmount vs purchasePrice/downPayment)
+                    // Handle both old and new format
                     if (data.inputs.purchasePrice) {
-                        document.getElementById('purchase-price').value = data.inputs.purchasePrice || '';
-                        document.getElementById('down-payment').value = data.inputs.downPayment || '20';
+                        purchasePriceInput.value = data.inputs.purchasePrice || '';
+                        downPaymentInput.value = data.inputs.downPayment || '20';
                     } else if (data.inputs.loanAmount) {
-                        // Legacy format - convert to purchase price with 20% down
                         const oldLoanAmount = parseFloat(data.inputs.loanAmount);
-                        const estimatedPurchasePrice = oldLoanAmount / 0.8; // Assume 20% down
-                        document.getElementById('purchase-price').value = estimatedPurchasePrice.toFixed(2);
-                        document.getElementById('down-payment').value = '20';
+                        const estimatedPurchasePrice = oldLoanAmount / 0.8;
+                        purchasePriceInput.value = estimatedPurchasePrice.toFixed(2);
+                        downPaymentInput.value = '20';
                     }
                     
-                    document.getElementById('interest-rate').value = data.inputs.interestRate || '';
-                    document.getElementById('loan-term').value = data.inputs.loanTerm || '';
+                    interestRateInput.value = data.inputs.interestRate || '';
+                    loanTermInput.value = data.inputs.loanTerm || '';
 
-                    // Set payment type radio buttons
+                    // Set payment type
                     if (data.inputs.paymentType === 'interest') {
-                        document.getElementById('payment-interest').checked = true;
+                        paymentInterest.checked = true;
                         loanTermGroup.classList.add('hidden');
                         loanTermInput.required = false;
                     } else {
-                        document.getElementById('payment-amortizing').checked = true;
+                        paymentAmortizing.checked = true;
                         loanTermGroup.classList.remove('hidden');
                         loanTermInput.required = true;
                     }
 
-                    // Set management fee radio buttons
+                    // Set management fee
                     if (data.inputs.hasMgmtFee === 'yes') {
-                        document.getElementById('mgmt-yes').checked = true;
+                        mgmtYes.checked = true;
                         mgmtFeeGroup.classList.remove('hidden');
-                        document.getElementById('mgmt-fee').value = data.inputs.mgmtFee || '';
+                        mgmtFeeInput.value = data.inputs.mgmtFee || '';
                     } else {
-                        document.getElementById('mgmt-no').checked = true;
+                        mgmtNo.checked = true;
                         mgmtFeeGroup.classList.add('hidden');
                     }
 
-                    // Trigger vacant units change to show/hide vacant income field
+                    // Trigger updates
                     vacantUnitsInput.dispatchEvent(new Event('input'));
-                    
-                    // Update calculations
-                    updateLoanAmount();
-                    updateCalculations();
+                    updateLoanAmountDisplay();
+                    updateRealTimeCalculations();
 
-                    // Scroll to form
                     form.scrollIntoView({ behavior: 'smooth' });
-
                     alert('Calculation loaded successfully! Review the values and click "Calculate DSCR" to see results.');
                     
                 } catch (error) {
@@ -1024,8 +1055,6 @@
                 }
             };
             reader.readAsText(file);
-            
-            // Reset file input
             e.target.value = '';
         });
     </script>
