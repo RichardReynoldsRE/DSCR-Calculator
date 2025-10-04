@@ -964,8 +964,11 @@
             // Create filename with address
             const address = propertyAddressInput.value || 'Property';
             const cleanAddress = address
-                .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
+                .replace(/,/g, '') // Remove commas
+                .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove other special characters
                 .replace(/\s+/g, '-') // Replace spaces with hyphens
+                .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+                .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
                 .substring(0, 50); // Limit length
             const date = new Date().toISOString().split('T')[0];
             const filename = `${cleanAddress}-${date}-DSCR-Calculation.json`;
