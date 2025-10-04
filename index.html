@@ -961,11 +961,20 @@
                 }
             };
 
+            // Create filename with address
+            const address = propertyAddressInput.value || 'Property';
+            const cleanAddress = address
+                .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
+                .replace(/\s+/g, '-') // Replace spaces with hyphens
+                .substring(0, 50); // Limit length
+            const date = new Date().toISOString().split('T')[0];
+            const filename = `${cleanAddress}-${date}-DSCR-Calculation.json`;
+
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `dscr-calculation-${new Date().toISOString().split('T')[0]}.json`;
+            a.download = filename;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
