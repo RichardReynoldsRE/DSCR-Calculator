@@ -203,7 +203,8 @@
             padding: 14px 32px;
             font-size: 1rem;
             font-weight: 600;
-            width: 100%;
+            width: auto;
+            max-width: fit-content;
         }
         
         .btn-calculate:hover {
@@ -354,7 +355,7 @@
                 flex-direction: column;
             }
             
-            button {
+            .btn-secondary, .btn-action, .btn-primary-action {
                 width: 100%;
             }
             
@@ -551,7 +552,9 @@
             </div>
 
             <!-- Calculate Button -->
-            <button type="submit" class="btn-calculate">Calculate DSCR</button>
+            <div style="text-align: center; margin: 32px 0;">
+                <button type="submit" class="btn-calculate">Calculate DSCR</button>
+            </div>
         </form>
 
         <!-- Results Section -->
